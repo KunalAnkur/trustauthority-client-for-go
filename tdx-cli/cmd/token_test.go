@@ -282,6 +282,110 @@ func TestTokenCmd(t *testing.T) {
 				return createDefaultMocks()
 			},
 		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				testQuoteBase64,
+			},
+			wantErr:     false,
+			description: "Evidence data supplied instead of collecting a quote",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				// an angry TDX adapter factory proves the local platform is never touched
+				return angryMockTdxAdapterFactory(), happyMockTpmAdapterFactory(), mockConfigFactory(nil), happyMockConnectorFactory()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				"not!valid!base64",
+			},
+			wantErr:     true,
+			description: "Evidence data that is not base64",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				"",
+			},
+			wantErr:     false,
+			description: "Empty evidence data falls back to collecting a quote",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				testQuoteBase64,
+				"--" + constants.WithTdxOptions.Name,
+			},
+			wantErr:     true,
+			description: "Evidence data conflicts with --tdx",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				testQuoteBase64,
+				"--" + constants.WithTpmOptions.Name,
+			},
+			wantErr:     true,
+			description: "Evidence data conflicts with --tpm",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				testQuoteBase64,
+				"--" + constants.UserDataOptions.Name,
+				"dGVzdA==",
+			},
+			wantErr:     true,
+			description: "Evidence data conflicts with --user-data",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.EvidenceDataOptions.Name,
+				testQuoteBase64,
+				"--" + constants.WithCcelOptions.Name,
+			},
+			wantErr:     true,
+			description: "Evidence data conflicts with --ccel",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
 	}
 
 	for _, tc := range tt {

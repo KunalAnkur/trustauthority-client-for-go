@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/intel/trustauthority-client/go-connector"
 	"github.com/intel/trustauthority-client/go-nvgpu"
+	"github.com/intel/trustauthority-client/go-tdx"
 	"github.com/intel/trustauthority-client/go-tpm"
 	"github.com/intel/trustauthority-client/tdx-cli/constants"
 	"github.com/pkg/errors"
@@ -63,6 +64,7 @@ func newTokenCommand(tdxAdapterFactory TdxAdapterFactory,
 	tokenCmd.Flags().Bool(constants.WithImaLogsOptions.Name, false, constants.WithImaLogsOptions.Description)
 	tokenCmd.Flags().Bool(constants.WithEventLogsOptions.Name, false, constants.WithEventLogsOptions.Description)
 	tokenCmd.Flags().Bool(constants.WithCcelOptions.Name, false, constants.WithCcelOptions.Description)
+	tokenCmd.Flags().String(constants.EvidenceDataOptions.Name, "", constants.EvidenceDataOptions.Description)
 
 	if err := tokenCmd.MarkFlagRequired(constants.ConfigOptions.Name); err != nil {
 		fmt.Fprintln(os.Stderr, "Error marking flag as required:", err)
@@ -151,6 +153,18 @@ func getToken(cmd *cobra.Command,
 		return err
 	}
 
+	evidenceData, err := cmd.Flags().GetString(constants.EvidenceDataOptions.Name)
+	if err != nil {
+		return err
+	}
+
+	// A quote supplied via --evidence-data was collected earlier and elsewhere, so
+	// its REPORTDATA is already fixed. A verifier nonce could not have been hashed
+	// into it, and the Trust Authority would reject the mismatch.
+	if evidenceData != "" {
+		noVerifierNonce = true
+	}
+
 	if !noVerifierNonce {
 		builderOptions = append(builderOptions, connector.WithVerifierNonce(trustAuthorityConnector))
 	}
@@ -191,9 +205,31 @@ func getToken(cmd *cobra.Command,
 		return err
 	}
 
+	// --evidence-data supplies the TD quote directly, so nothing is collected from
+	// the local platform. Reject the options that only make sense while collecting.
+	if evidenceData != "" {
+		for _, opt := range []struct {
+			name string
+			set  bool
+		}{
+			{constants.WithTdxOptions.Name, withTdx},
+			{constants.WithTpmOptions.Name, withTpm},
+			{constants.WithNvGpuOptions.Name, withNvGpu},
+			{constants.WithCcelOptions.Name, withCcel},
+			{constants.WithImaLogsOptions.Name, withImaLogs},
+			{constants.WithEventLogsOptions.Name, withUefiEventLogs},
+			{constants.UserDataOptions.Name, userData != ""},
+			{constants.PublicKeyPathOption, publicKeyPath != ""},
+		} {
+			if opt.set {
+				return errors.Errorf("%q cannot be used with %q", "--"+opt.name, "--"+constants.EvidenceDataOptions.Name)
+			}
+		}
+	}
+
 	// backward compatibility cli options: if the user did not specify "--tdx, "--tpm" or "--nvgpu" options,
 	// include TDX evidence by default
-	if !withTdx && !withTpm && !withNvGpu {
+	if evidenceData == "" && !withTdx && !withTpm && !withNvGpu {
 		withTdx = true
 	}
 
@@ -247,6 +283,20 @@ func getToken(cmd *cobra.Command,
 
 		signingAlg := connector.JwtAlg(tokenSigningAlg)
 		builderOptions = append(builderOptions, connector.WithTokenSigningAlgorithm(signingAlg))
+	}
+
+	if evidenceData != "" {
+		quote, err := decodeBase64(evidenceData)
+		if err != nil {
+			return errors.Wrap(err, "Error while base64 decoding of evidence data")
+		}
+
+		staticAdapter, err := tdx.NewStaticEvidenceAdapter(quote)
+		if err != nil {
+			return errors.Wrap(err, "Error creating static evidence adapter")
+		}
+
+		builderOptions = append(builderOptions, connector.WithEvidenceAdapter(staticAdapter))
 	}
 
 	if withTdx {

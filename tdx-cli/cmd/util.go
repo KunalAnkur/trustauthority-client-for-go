@@ -7,6 +7,7 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,24 @@ func parsePolicyIds(policyIds string) ([]uuid.UUID, error) {
 	}
 
 	return pIds, nil
+}
+
+// decodeBase64 decodes standard and URL-safe base64, with or without padding.
+// The CLI documents base64|base64url input, and a TD quote read back from a
+// file or an HTTP response can arrive in either form.
+func decodeBase64(encoded string) ([]byte, error) {
+	for _, encoding := range []*base64.Encoding{
+		base64.StdEncoding,
+		base64.RawStdEncoding,
+		base64.URLEncoding,
+		base64.RawURLEncoding,
+	} {
+		if decoded, err := encoding.DecodeString(encoded); err == nil {
+			return decoded, nil
+		}
+	}
+
+	return nil, errors.New("Value is not valid base64 or base64url")
 }
 
 func ValidateFilePath(path string) (string, error) {
