@@ -110,18 +110,25 @@ sudo trustauthority-cli token --config config.json --user-data <base64 encoded u
 ### To get a token for a quote that was collected elsewhere
 
 By default the `token` command collects a quote from the local platform, which
-requires a TEE. Pass `--evidence-data` with a base64 encoded TD quote to attest a
-quote that was collected earlier, on another host. Evidence collection is skipped
-entirely, so the command runs on a host with no TEE of its own — for example a
-relying party performing background-check attestation.
+requires a TEE. Pass `--quote-file` with the path to a file holding a base64
+encoded TD quote to attest a quote that was collected earlier, on another host.
+Evidence collection is skipped entirely, so the command runs on a host with no TEE
+of its own — for example a relying party performing background-check attestation.
 
 ```sh
-trustauthority-cli token --config config.json --evidence-data <base64 encoded TD quote>
+trustauthority-cli token --config config.json --quote-file quote.b64
+```
+
+The file may be wrapped across lines, as produced by `base64` without `-w0`. A raw
+binary quote must be encoded first:
+
+```sh
+base64 -w0 quote.dat > quote.b64
 ```
 
 The quote already exists, so its REPORTDATA is fixed and nothing can be bound into
 it after the fact. The command therefore does not request a verifier nonce, and
-these options are rejected when combined with `--evidence-data`: `--tdx`, `--tpm`,
+these options are rejected when combined with `--quote-file`: `--tdx`, `--tpm`,
 `--nvgpu`, `--ccel`, `--ima`, `--evl`, `--user-data` and `--pub-path`.
 
 To bind a verifier nonce or user data, the quote must be generated with them

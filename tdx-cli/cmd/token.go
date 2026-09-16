@@ -64,7 +64,7 @@ func newTokenCommand(tdxAdapterFactory TdxAdapterFactory,
 	tokenCmd.Flags().Bool(constants.WithImaLogsOptions.Name, false, constants.WithImaLogsOptions.Description)
 	tokenCmd.Flags().Bool(constants.WithEventLogsOptions.Name, false, constants.WithEventLogsOptions.Description)
 	tokenCmd.Flags().Bool(constants.WithCcelOptions.Name, false, constants.WithCcelOptions.Description)
-	tokenCmd.Flags().String(constants.EvidenceDataOptions.Name, "", constants.EvidenceDataOptions.Description)
+	tokenCmd.Flags().String(constants.QuoteFileOptions.Name, "", constants.QuoteFileOptions.Description)
 
 	if err := tokenCmd.MarkFlagRequired(constants.ConfigOptions.Name); err != nil {
 		fmt.Fprintln(os.Stderr, "Error marking flag as required:", err)
@@ -153,15 +153,15 @@ func getToken(cmd *cobra.Command,
 		return err
 	}
 
-	evidenceData, err := cmd.Flags().GetString(constants.EvidenceDataOptions.Name)
+	quoteFile, err := cmd.Flags().GetString(constants.QuoteFileOptions.Name)
 	if err != nil {
 		return err
 	}
 
-	// A quote supplied via --evidence-data was collected earlier and elsewhere, so
-	// its REPORTDATA is already fixed. A verifier nonce could not have been hashed
-	// into it, and the Trust Authority would reject the mismatch.
-	if evidenceData != "" {
+	// A quote supplied via --quote-file was collected earlier and elsewhere, so its
+	// REPORTDATA is already fixed. A verifier nonce could not have been hashed into
+	// it, and the Trust Authority would reject the mismatch.
+	if quoteFile != "" {
 		noVerifierNonce = true
 	}
 
@@ -205,9 +205,9 @@ func getToken(cmd *cobra.Command,
 		return err
 	}
 
-	// --evidence-data supplies the TD quote directly, so nothing is collected from
-	// the local platform. Reject the options that only make sense while collecting.
-	if evidenceData != "" {
+	// --quote-file supplies the TD quote directly, so nothing is collected from the
+	// local platform. Reject the options that only make sense while collecting.
+	if quoteFile != "" {
 		for _, opt := range []struct {
 			name string
 			set  bool
@@ -222,14 +222,14 @@ func getToken(cmd *cobra.Command,
 			{constants.PublicKeyPathOption, publicKeyPath != ""},
 		} {
 			if opt.set {
-				return errors.Errorf("%q cannot be used with %q", "--"+opt.name, "--"+constants.EvidenceDataOptions.Name)
+				return errors.Errorf("%q cannot be used with %q", "--"+opt.name, "--"+constants.QuoteFileOptions.Name)
 			}
 		}
 	}
 
 	// backward compatibility cli options: if the user did not specify "--tdx, "--tpm" or "--nvgpu" options,
 	// include TDX evidence by default
-	if evidenceData == "" && !withTdx && !withTpm && !withNvGpu {
+	if quoteFile == "" && !withTdx && !withTpm && !withNvGpu {
 		withTdx = true
 	}
 
@@ -285,10 +285,10 @@ func getToken(cmd *cobra.Command,
 		builderOptions = append(builderOptions, connector.WithTokenSigningAlgorithm(signingAlg))
 	}
 
-	if evidenceData != "" {
-		quote, err := decodeBase64(evidenceData)
+	if quoteFile != "" {
+		quote, err := readQuoteFile(quoteFile)
 		if err != nil {
-			return errors.Wrap(err, "Error while base64 decoding of evidence data")
+			return err
 		}
 
 		staticAdapter, err := tdx.NewStaticEvidenceAdapter(quote)

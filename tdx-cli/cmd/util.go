@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/intel/trustauthority-client/tdx-cli/constants"
@@ -65,6 +66,44 @@ func decodeBase64(encoded string) ([]byte, error) {
 	}
 
 	return nil, errors.New("Value is not valid base64 or base64url")
+}
+
+// maxQuoteFileSize caps what readQuoteFile will read. A TD quote is a few KB;
+// the Trust Authority rejects request bodies over 500,000 bytes, so anything
+// approaching that cannot be attested anyway.
+const maxQuoteFileSize = 512 * 1024
+
+// readQuoteFile reads a base64 encoded TD quote from a file and decodes it.
+func readQuoteFile(path string) ([]byte, error) {
+	quotePath, err := ValidateFilePath(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "Invalid quote file path provided")
+	}
+
+	info, err := os.Stat(quotePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error reading quote file")
+	}
+	if info.Size() > maxQuoteFileSize {
+		return nil, errors.Errorf("Quote file is larger than %d bytes", maxQuoteFileSize)
+	}
+
+	contents, err := os.ReadFile(quotePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error reading quote file")
+	}
+
+	quote, err := decodeBase64(string(contents))
+	if err != nil {
+		// A raw quote read straight from configfs-tsm is a common mistake. Say so
+		// rather than letting the Trust Authority reject it later.
+		if !utf8.Valid(contents) {
+			return nil, errors.Errorf("Quote file %q appears to hold a raw binary quote; base64 encode it first, for example: base64 -w0 quote.dat > quote.b64", path)
+		}
+		return nil, errors.Wrapf(err, "Error while base64 decoding quote file %q", path)
+	}
+
+	return quote, nil
 }
 
 func ValidateFilePath(path string) (string, error) {

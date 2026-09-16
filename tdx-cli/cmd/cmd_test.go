@@ -88,8 +88,12 @@ const (
 	testApiKey              = "YXBpa2V5"
 	testValidUrl            = "https://notused.com:8080"
 	testNonExistentFileName = "doesnotexist.json"
-	// stands in for a base64 encoded TD quote supplied via --evidence-data
-	testQuoteBase64 = "3q2+7w=="
+	// files backing the --quote-file tests
+	testQuoteFilePath        = "test-quote.b64"
+	testBadQuoteFilePath     = "test-quote-bad.b64"
+	testRawQuoteFilePath     = "test-quote-raw.dat"
+	testQuoteFileContents    = "3q2+7w=="
+	testBadQuoteFileContents = "not!valid!base64"
 )
 
 var (
