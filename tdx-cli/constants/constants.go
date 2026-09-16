@@ -58,4 +58,5 @@ var (
 	WithCcelOptions        = CommandOptions{"ccel", "", "When set, TDX evidence will include Confidential Computing Event Logs"}
 	RequestIdOptions       = CommandOptions{"request-id", "r", "Request ID for the token"}
 	AkTemplateIndexOptions = CommandOptions{"ak-template-index", "", "The nvram index containing a valid AK template"}
+	QuoteFileOptions       = CommandOptions{"quote-file", "", "Path to a file holding a base64 encoded TD quote. When set, evidence is not collected from the local platform, allowing the command to run on a host without a TEE"}
 )

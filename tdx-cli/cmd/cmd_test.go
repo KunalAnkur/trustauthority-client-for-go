@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/intel/trustauthority-client/go-connector"
 	"github.com/intel/trustauthority-client/go-tpm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 )
@@ -87,6 +88,12 @@ const (
 	testApiKey              = "YXBpa2V5"
 	testValidUrl            = "https://notused.com:8080"
 	testNonExistentFileName = "doesnotexist.json"
+	// files backing the --quote-file tests
+	testQuoteFilePath        = "test-quote.b64"
+	testBadQuoteFilePath     = "test-quote-bad.b64"
+	testRawQuoteFilePath     = "test-quote-raw.dat"
+	testQuoteFileContents    = "3q2+7w=="
+	testBadQuoteFileContents = "not!valid!base64"
 )
 
 var (
@@ -338,6 +345,16 @@ func happyMockTdxAdapterFactory() TdxAdapterFactory {
 
 	mockTdxAdapterFactory := MockTdxAdapterFactory{}
 	mockTdxAdapterFactory.On("New", mock.Anything, mock.Anything).Return(&mockCompositeAdapter, nil)
+
+	return &mockTdxAdapterFactory
+}
+
+// angryMockTdxAdapterFactory fails if it is asked for an adapter. Use it to
+// assert that a code path never collects evidence from the local platform.
+func angryMockTdxAdapterFactory() TdxAdapterFactory {
+	mockTdxAdapterFactory := MockTdxAdapterFactory{}
+	mockTdxAdapterFactory.On("New", mock.Anything, mock.Anything).
+		Return(nil, errors.New("the TDX adapter factory should not have been called"))
 
 	return &mockTdxAdapterFactory
 }

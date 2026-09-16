@@ -36,6 +36,16 @@ func TestTokenCmd(t *testing.T) {
 	_ = os.WriteFile(publicKeyPath, []byte(pubKey), 0600)
 	defer os.Remove(publicKeyPath)
 
+	_ = os.WriteFile(testQuoteFilePath, []byte(testQuoteFileContents), 0600)
+	defer os.Remove(testQuoteFilePath)
+
+	_ = os.WriteFile(testBadQuoteFilePath, []byte(testBadQuoteFileContents), 0600)
+	defer os.Remove(testBadQuoteFilePath)
+
+	// a raw binary quote, i.e. what configfs-tsm outblob produces
+	_ = os.WriteFile(testRawQuoteFilePath, []byte{0x04, 0x00, 0x02, 0x00, 0x81, 0xff, 0xfe}, 0600)
+	defer os.Remove(testRawQuoteFilePath)
+
 	tt := []struct {
 		args            []string
 		wantErr         bool
@@ -278,6 +288,138 @@ func TestTokenCmd(t *testing.T) {
 			},
 			wantErr:     false,
 			description: "TPM Adapter",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+			},
+			wantErr:     false,
+			description: "Quote file supplied instead of collecting a quote",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				// an angry TDX adapter factory proves the local platform is never touched
+				return angryMockTdxAdapterFactory(), happyMockTpmAdapterFactory(), mockConfigFactory(nil), happyMockConnectorFactory()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testBadQuoteFilePath,
+			},
+			wantErr:     true,
+			description: "Quote file that is not base64",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testRawQuoteFilePath,
+			},
+			wantErr:     true,
+			description: "Quote file holding a raw binary quote",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testNonExistentFileName,
+			},
+			wantErr:     true,
+			description: "Quote file that does not exist",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				"",
+			},
+			wantErr:     false,
+			description: "Empty quote file path falls back to collecting a quote",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+				"--" + constants.WithTdxOptions.Name,
+			},
+			wantErr:     true,
+			description: "Quote file conflicts with --tdx",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+				"--" + constants.WithTpmOptions.Name,
+			},
+			wantErr:     true,
+			description: "Quote file conflicts with --tpm",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+				"--" + constants.UserDataOptions.Name,
+				"dGVzdA==",
+			},
+			wantErr:     true,
+			description: "Quote file conflicts with --user-data",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return createDefaultMocks()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+				"--" + constants.WithCcelOptions.Name,
+			},
+			wantErr:     true,
+			description: "Quote file conflicts with --ccel",
 			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
 				return createDefaultMocks()
 			},
