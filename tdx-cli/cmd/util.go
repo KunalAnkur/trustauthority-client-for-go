@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/intel/trustauthority-client/tdx-cli/constants"
@@ -36,7 +37,22 @@ func parsePolicyIds(policyIds string) ([]uuid.UUID, error) {
 // decodeBase64 decodes standard and URL-safe base64, with or without padding.
 // The CLI documents base64|base64url input, and a TD quote read back from a
 // file or an HTTP response can arrive in either form.
+//
+// Line breaks and surrounding whitespace are ignored: base64(1) wraps its
+// output at 76 columns unless -w0 is given, and a quote encoded that way would
+// otherwise be rejected.
 func decodeBase64(encoded string) ([]byte, error) {
+	encoded = strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, encoded)
+
+	if encoded == "" {
+		return nil, errors.New("Value is empty")
+	}
+
 	for _, encoding := range []*base64.Encoding{
 		base64.StdEncoding,
 		base64.RawStdEncoding,
