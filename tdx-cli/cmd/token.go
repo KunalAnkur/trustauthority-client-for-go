@@ -229,7 +229,7 @@ func getToken(cmd *cobra.Command,
 
 	// backward compatibility cli options: if the user did not specify "--tdx, "--tpm" or "--nvgpu" options,
 	// include TDX evidence by default
-	if quoteFile == "" && !withTdx && !withTpm && !withNvGpu {
+	if !withTdx && !withTpm && !withNvGpu {
 		withTdx = true
 	}
 
