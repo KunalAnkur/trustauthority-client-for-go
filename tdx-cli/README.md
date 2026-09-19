@@ -127,15 +127,28 @@ base64 -w0 quote.dat > quote.b64
 ```
 
 The quote already exists, so its REPORTDATA is fixed and nothing can be bound into
-it after the fact. The command therefore does not request a verifier nonce, and
-these options are rejected when combined with `--quote-file`: `--tdx`, `--tpm`,
-`--nvgpu`, `--ccel`, `--ima`, `--evl`, `--user-data` and `--pub-path`.
-
-To bind a verifier nonce or user data, the quote must be generated with them
-already hashed into its REPORTDATA — use the local collection path instead.
+it here. A fresh verifier nonce is therefore not requested, and these options are
+rejected when combined with `--quote-file`: `--tdx`, `--tpm`, `--nvgpu`, `--ccel`,
+`--ima` and `--evl`.
 
 `--policy-ids`, `--policy-must-match`, `--token-signing-alg` and `--request-id`
 work as usual.
+
+#### Including user data
+
+A quote collected against user data can be attested with that data by passing
+`--user-data` (or `--pub-path` to read a public key from a PEM file). It is sent
+as `runtime_data`, and the quote must have been collected with its REPORTDATA
+already set to `SHA512(user_data)`:
+
+```sh
+trustauthority-cli token --config config.json --quote-file quote.b64 --user-data <base64>
+```
+
+The CLI cannot check that the quote was collected against the data. Intel Trust
+Authority recomputes REPORTDATA and rejects a mismatch with `Invalid nonce and/or
+run time data`. On success the value is returned in the token as
+`attester_held_data`.
 
 ### To verify an Intel Trust Authority attestation token
 

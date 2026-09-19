@@ -23,19 +23,23 @@ type staticAdapter struct {
 
 // staticTdxEvidence is deliberately not compositeTdxEvidence: that struct tags
 // RuntimeData without omitempty, so reusing it would put "runtime_data": null
-// on the wire. This produces exactly {"quote": "..."}.
+// on the wire when no user data is supplied.
 type staticTdxEvidence struct {
-	Quote []byte `json:"quote"`
+	Quote       []byte `json:"quote"`
+	RuntimeData []byte `json:"runtime_data,omitempty"`
 }
 
 // NewStaticEvidenceAdapter returns a CompositeEvidenceAdapter that attests the
 // supplied TD quote rather than collecting evidence from the local platform.
 //
 // Because the quote already exists, its REPORTDATA is fixed and nothing can be
-// bound into it after the fact. GetEvidence therefore rejects a verifier nonce
-// or user data: the Trust Authority recomputes REPORTDATA from those values and
-// would reject the quote. Callers that need nonce binding must generate the
-// quote with the nonce already hashed into REPORTDATA.
+// bound into it here. User data may still be passed through when the quote was
+// collected against it, i.e. with REPORTDATA already set to SHA512(user_data).
+// The adapter cannot check that; the Trust Authority recomputes REPORTDATA and
+// rejects a mismatch.
+//
+// A verifier nonce is rejected: one obtained here would be unrelated to the
+// quote, and one the quote was collected against has no way in.
 func NewStaticEvidenceAdapter(quote []byte) (connector.CompositeEvidenceAdapter, error) {
 	if len(quote) == 0 {
 		return nil, errors.New("The quote must not be empty")
@@ -53,11 +57,8 @@ func (adapter *staticAdapter) GetEvidence(verifierNonce *connector.VerifierNonce
 		return nil, errors.New("A verifier nonce cannot be bound to a quote that has already been collected")
 	}
 
-	if len(userData) != 0 {
-		return nil, errors.New("User data cannot be bound to a quote that has already been collected")
-	}
-
 	return &staticTdxEvidence{
-		Quote: adapter.quote,
+		Quote:       adapter.quote,
+		RuntimeData: userData,
 	}, nil
 }

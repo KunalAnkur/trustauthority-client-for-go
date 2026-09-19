@@ -56,18 +56,33 @@ func TestStaticAdapterEvidenceSerialization(t *testing.T) {
 	assert.JSONEq(t, `{"quote":"3q2+7w=="}`, string(body))
 }
 
-// A quote that already exists cannot have a nonce or user data hashed into its
-// report data after the fact, so the adapter must refuse rather than send
-// evidence the Trust Authority is guaranteed to reject.
-func TestStaticAdapterRejectsBinding(t *testing.T) {
+// A nonce obtained here would be unrelated to a quote that already exists, so
+// the adapter refuses rather than send evidence the Trust Authority will reject.
+func TestStaticAdapterRejectsVerifierNonce(t *testing.T) {
 	adapter, err := NewStaticEvidenceAdapter([]byte{0xde, 0xad, 0xbe, 0xef})
 	assert.NoError(t, err)
 
 	evidence, err := adapter.GetEvidence(&connector.VerifierNonce{}, nil)
 	assert.Error(t, err)
 	assert.Nil(t, evidence)
+}
 
-	evidence, err = adapter.GetEvidence(nil, []byte("user data"))
-	assert.Error(t, err)
-	assert.Nil(t, evidence)
+// User data the quote was collected against is passed through as runtime_data,
+// for the Trust Authority to check against REPORTDATA.
+func TestStaticAdapterPassesThroughUserData(t *testing.T) {
+	userData := []byte("user data")
+
+	adapter, err := NewStaticEvidenceAdapter([]byte{0xde, 0xad, 0xbe, 0xef})
+	assert.NoError(t, err)
+
+	evidence, err := adapter.GetEvidence(nil, userData)
+	assert.NoError(t, err)
+
+	static, ok := evidence.(*staticTdxEvidence)
+	assert.True(t, ok)
+	assert.Equal(t, userData, static.RuntimeData)
+
+	body, err := json.Marshal(evidence)
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"quote":"3q2+7w==","runtime_data":"dXNlciBkYXRh"}`, string(body))
 }

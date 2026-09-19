@@ -218,8 +218,6 @@ func getToken(cmd *cobra.Command,
 			{constants.WithCcelOptions.Name, withCcel},
 			{constants.WithImaLogsOptions.Name, withImaLogs},
 			{constants.WithEventLogsOptions.Name, withUefiEventLogs},
-			{constants.UserDataOptions.Name, userData != ""},
-			{constants.PublicKeyPathOption, publicKeyPath != ""},
 		} {
 			if opt.set {
 				return errors.Errorf("%q cannot be used with %q", "--"+opt.name, "--"+constants.QuoteFileOptions.Name)

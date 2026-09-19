@@ -400,11 +400,10 @@ func TestTokenCmd(t *testing.T) {
 				confFilePath,
 				"--" + constants.QuoteFileOptions.Name,
 				testQuoteFilePath,
-				"--" + constants.UserDataOptions.Name,
-				"dGVzdA==",
+				"--" + constants.WithCcelOptions.Name,
 			},
 			wantErr:     true,
-			description: "Quote file conflicts with --user-data",
+			description: "Quote file conflicts with --ccel",
 			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
 				return createDefaultMocks()
 			},
@@ -416,12 +415,29 @@ func TestTokenCmd(t *testing.T) {
 				confFilePath,
 				"--" + constants.QuoteFileOptions.Name,
 				testQuoteFilePath,
-				"--" + constants.WithCcelOptions.Name,
+				"--" + constants.UserDataOptions.Name,
+				"dGVzdHVzZXJkYXRh",
 			},
-			wantErr:     true,
-			description: "Quote file conflicts with --ccel",
+			wantErr:     false,
+			description: "Quote file with user data",
 			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
-				return createDefaultMocks()
+				return angryMockTdxAdapterFactory(), happyMockTpmAdapterFactory(), mockConfigFactory(nil), happyMockConnectorFactory()
+			},
+		},
+		{
+			args: []string{
+				constants.TokenCmd,
+				"--" + constants.ConfigOptions.Name,
+				confFilePath,
+				"--" + constants.QuoteFileOptions.Name,
+				testQuoteFilePath,
+				"--" + constants.PublicKeyPathOption,
+				publicKeyPath,
+			},
+			wantErr:     false,
+			description: "Quote file with a public key as user data",
+			dependencyMocks: func() (TdxAdapterFactory, tpm.TpmAdapterFactory, ConfigFactory, connector.ConnectorFactory) {
+				return angryMockTdxAdapterFactory(), happyMockTpmAdapterFactory(), mockConfigFactory(nil), happyMockConnectorFactory()
 			},
 		},
 	}
